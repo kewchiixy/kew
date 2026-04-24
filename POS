@@ -1,1 +1,1295 @@
 
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>POS คิดเงิน</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F4EFE6;
+  --surface: #FFFFFF;
+  --surface2: #FAF7F2;
+  --border: #DDD5C8;
+  --text: #1C1710;
+  --muted: #9A8E82;
+  --accent: #D95F0A;
+  --accent-h: #B84E08;
+  --accent-l: #FEF0E6;
+  --green: #1A9460;
+  --green-h: #157A4E;
+  --green-l: #E5F6EE;
+  --blue: #1B6ACE;
+  --blue-l: #E5EFFE;
+  --red: #CC3B1B;
+  --red-l: #FDEBE6;
+  --yellow: #D4890A;
+  --yellow-l: #FEF5E6;
+  --r: 14px;
+  --rs: 10px;
+  --sh: 0 2px 8px rgba(0,0,0,0.08);
+  --sh2: 0 6px 24px rgba(0,0,0,0.13);
+}
+
+/* ========== RESET ========== */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{height:100%}
+body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);height:100dvh;display:grid;grid-template-rows:auto 1fr;overflow:hidden}
+
+/* ========== HEADER ========== */
+.hdr{background:var(--text);color:#fff;height:48px;padding:0 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;z-index:10}
+.hdr-logo{font-size:18px;font-weight:900;letter-spacing:-0.5px;white-space:nowrap}
+.hdr-logo span{color:var(--accent)}
+.hdr-clock{font-size:15px;font-weight:800;color:rgba(255,255,255,0.6);font-variant-numeric:tabular-nums;white-space:nowrap;flex:1;text-align:center}
+.hdr-btns{display:flex;gap:6px;flex-shrink:0}
+.hbtn{background:rgba(255,255,255,0.12);border:2px solid rgba(255,255,255,0.18);color:#fff;padding:6px 12px;border-radius:9px;font-family:'Sarabun',sans-serif;font-size:13px;font-weight:800;cursor:pointer;transition:background 0.15s;white-space:nowrap}
+.hbtn:hover,.hbtn:active{background:rgba(255,255,255,0.22)}
+.hbtn.acc{background:var(--accent);border-color:var(--accent)}
+.hbtn.acc:hover{background:var(--accent-h)}
+
+/* ========== BACKUP INDICATOR ========== */
+.backup-dot{width:7px;height:7px;border-radius:50%;display:inline-block;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+/* ========== MAIN LAYOUT ========== */
+/* body row 2 = main; split left + right */
+.main{
+  display:grid;
+  grid-template-columns:1fr 320px;
+  overflow:hidden;
+  min-height:0;
+}
+
+/* ========== LEFT PANEL — fixed grid rows, NO scroll ever ========== */
+.lpanel{
+  display:grid;
+  /* rows: price-grid | payment-btns | denom section */
+  grid-template-rows:auto auto 1fr;
+  overflow:hidden;
+  padding:8px;
+  gap:6px;
+  min-height:0;
+}
+/* alias for the scrollable wrapper — no longer scrolls */
+.lpanel-scroll{
+  display:contents; /* children participate in lpanel grid directly */
+}
+
+/* price section = auto height */
+.price-section{ min-height:0; }
+
+/* payment section = auto height */
+.payment-section{ min-height:0; }
+
+/* cash section fills remaining space */
+#cashSection{
+  display:grid;
+  grid-template-rows:auto 1fr; /* label + denom-wrap */
+  min-height:0;
+  overflow:hidden;
+}
+#transferSection{
+  display:flex;flex-direction:column;justify-content:center;
+}
+
+/* denom-wrap = fixed grid inside cashSection row 2 */
+.denom-wrap{
+  background:var(--surface);border:2px solid var(--border);border-radius:var(--r);
+  padding:8px;box-shadow:var(--sh);
+  display:grid;
+  /* rows: banknote-label | banknote-grid | coin-label | coin-grid | manual-toggle | [manual-input] | breakdown | divider+total | change */
+  grid-template-rows:auto auto auto auto auto auto 1fr auto auto;
+  gap:5px;
+  overflow:hidden;
+  min-height:0;
+}
+
+/* ========== SECTION LABEL ========== */
+.slabel{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:3px;flex-shrink:0}
+
+/* ========== PRICE GRID ========== */
+.pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.pbtn{
+  background:var(--surface);border:2px solid var(--border);border-radius:12px;
+  padding:0 4px;
+  font-family:'Sarabun',sans-serif;font-size:19px;font-weight:900;color:var(--text);
+  cursor:pointer;transition:all 0.1s;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  box-shadow:var(--sh);height:58px;touch-action:manipulation;
+}
+.pbtn .sub{font-size:10px;font-weight:700;color:var(--muted)}
+.pbtn:hover{border-color:var(--accent);background:var(--accent-l);color:var(--accent)}
+.pbtn:active{transform:scale(0.92)}
+.pbtn.hi{background:var(--accent-l);border-color:var(--accent);color:var(--accent)}
+.pbtn.hi .sub{color:var(--accent);opacity:0.7}
+.pcustom{
+  grid-column:span 2;background:var(--text);border:2px solid var(--text);border-radius:12px;
+  padding:0 12px;font-family:'Sarabun',sans-serif;font-size:15px;font-weight:900;color:#fff;
+  cursor:pointer;transition:all 0.1s;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  height:58px;box-shadow:var(--sh);touch-action:manipulation;
+}
+.pcustom:hover{background:#2d2820}
+.pcustom:active{transform:scale(0.96)}
+
+/* ========== PAYMENT TYPE ========== */
+.ptype{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ptbtn{
+  border:2px solid var(--border);border-radius:12px;padding:10px;
+  font-family:'Sarabun',sans-serif;font-size:17px;font-weight:900;
+  cursor:pointer;transition:all 0.15s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  background:var(--surface);color:var(--muted);touch-action:manipulation;
+}
+.ptbtn.ac{background:var(--green-l);border-color:var(--green);color:var(--green)}
+.ptbtn.at{background:var(--blue-l);border-color:var(--blue);color:var(--blue)}
+
+/* ========== DENOM GRID ========== */
+.denom-sub-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;line-height:1}
+.denom-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.denom-grid.coins{grid-template-columns:repeat(4,1fr)}
+.dbtn{
+  position:relative;background:var(--surface2);border:2px solid var(--border);border-radius:9px;
+  padding:6px 4px;text-align:center;cursor:pointer;transition:all 0.1s;
+  height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  user-select:none;touch-action:manipulation;
+}
+.dbtn .dv{font-size:15px;font-weight:900;line-height:1}
+.dbtn .dt{font-size:10px;color:var(--muted);font-weight:600}
+.dbtn:hover{border-color:var(--accent);background:var(--accent-l)}
+.dbtn:active{transform:scale(0.90)}
+.dbadge{position:absolute;top:-7px;right:-7px;background:var(--accent);color:#fff;width:20px;height:20px;border-radius:50%;display:none;align-items:center;justify-content:center;font-size:11px;font-weight:900;border:2px solid var(--surface)}
+.dbadge.show{display:flex}
+
+/* ========== BREAKDOWN ========== */
+.denom-breakdown{display:flex;flex-direction:column;gap:3px;overflow-y:auto;min-height:0}
+.denom-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border-radius:7px;padding:4px 8px;animation:slideIn 0.2s ease;flex-shrink:0}
+.denom-row-left{display:flex;align-items:center;gap:6px}
+.denom-row-info{font-size:14px;font-weight:700}
+.denom-row-total{font-size:14px;font-weight:800;font-variant-numeric:tabular-nums}
+.denom-row-minus{background:none;border:1.5px solid var(--border);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:15px;font-weight:800;color:var(--muted);display:flex;align-items:center;justify-content:center;transition:all 0.1s;flex-shrink:0}
+.denom-row-minus:hover{border-color:var(--red);color:var(--red);background:var(--red-l)}
+.denom-empty{text-align:center;color:var(--muted);font-size:12px;padding:4px 0}
+
+/* ========== TOTAL RECEIVED ========== */
+.denom-total-row{display:flex;justify-content:space-between;align-items:center;padding-top:4px;border-top:2px solid var(--border);flex-shrink:0}
+.denom-total-label{font-size:13px;font-weight:700;color:var(--muted)}
+.denom-total-val{font-size:20px;font-weight:900;font-variant-numeric:tabular-nums}
+
+/* ========== MANUAL INPUT ========== */
+.denom-manual-toggle{background:none;border:1.5px solid var(--border);border-radius:7px;padding:5px 10px;font-family:'Sarabun',sans-serif;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;width:100%;transition:all 0.15s;flex-shrink:0}
+.denom-manual-toggle:hover{background:var(--surface2)}
+.manual-input{border:2px solid var(--border);border-radius:var(--rs);padding:7px 12px;font-family:'Sarabun',sans-serif;font-size:20px;font-weight:800;color:var(--text);outline:none;background:var(--surface2);width:100%;text-align:right;flex-shrink:0}
+.manual-input:focus{border-color:var(--accent);background:#fff}
+
+/* ========== CHANGE BOX — always last row in denom-wrap grid ========== */
+.change-box{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:10px 14px;
+  background:var(--green-l);border-radius:var(--rs);border:2px solid var(--green);
+  flex-shrink:0;
+}
+.change-box.ins{background:var(--red-l);border-color:var(--red)}
+.change-box.zero{background:var(--surface2);border-color:var(--border)}
+.change-lbl{font-size:16px;font-weight:800;color:var(--green)}
+.change-box.ins .change-lbl{color:var(--red)}
+.change-box.zero .change-lbl{color:var(--muted)}
+.change-val{font-size:28px;font-weight:900;color:var(--green);font-variant-numeric:tabular-nums}
+.change-box.ins .change-val{color:var(--red)}
+.change-box.zero .change-val{color:var(--muted)}
+
+/* ========== TRANSFER BOX ========== */
+.transfer-box{background:var(--blue-l);border:2px solid var(--blue);border-radius:var(--r);padding:16px;text-align:center}
+.transfer-box .ti{font-size:28px;margin-bottom:4px}
+.transfer-box .tl{font-size:17px;font-weight:900;color:var(--blue)}
+.transfer-box .ts{font-size:12px;color:var(--blue);opacity:0.7;margin-top:3px}
+
+/* ========== CART ========== */
+.rpanel{
+  background:var(--surface);border-left:2px solid var(--border);
+  display:grid;grid-template-rows:auto 1fr auto;
+  overflow:hidden;min-height:0;
+}
+.cart-hdr{padding:10px 14px 8px;border-bottom:2px solid var(--border)}
+.cart-hdr{display:flex;justify-content:space-between;align-items:center;}
+.cart-title{font-size:15px;font-weight:900}
+.btn-clr{background:var(--red-l);color:var(--red);border:none;padding:7px 12px;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:13px;font-weight:700;cursor:pointer}
+.btn-clr:hover{background:#f5c2bb}
+.cart-list{overflow-y:auto;padding:5px 12px;min-height:0}
+.cart-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--muted);gap:7px}
+.cart-empty .ei{font-size:36px}
+.cart-empty p{font-size:15px;font-weight:700}
+.cart-empty .es{font-size:12px}
+.citem{display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);gap:7px;animation:slideIn 0.2s ease}
+@keyframes slideIn{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:none}}
+.citem-info{flex:1;min-width:0}
+.citem-name{font-size:14px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.citem-price{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.cqty{display:flex;align-items:center;gap:5px}
+.qbtn{width:28px;height:28px;border-radius:7px;border:2px solid var(--border);background:var(--surface2);font-size:15px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text);touch-action:manipulation}
+.qbtn:hover{background:var(--border)}
+.qnum{font-size:14px;font-weight:900;min-width:22px;text-align:center;font-variant-numeric:tabular-nums}
+.citem-tot{font-size:14px;font-weight:900;min-width:56px;text-align:right;font-variant-numeric:tabular-nums}
+.rmbtn{background:none;border:none;color:var(--muted);font-size:15px;cursor:pointer;padding:3px;transition:color 0.1s;line-height:1}
+.rmbtn:hover{color:var(--red)}
+
+/* CART FOOTER */
+.cart-foot{border-top:2px solid var(--border);padding:10px 14px;background:var(--surface2)}
+.tot-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.tot-lbl{font-size:15px;font-weight:700;color:var(--muted)}
+.tot-amt{font-size:34px;font-weight:900;font-variant-numeric:tabular-nums}
+.tot-cur{font-size:15px;font-weight:700;color:var(--muted);margin-left:3px}
+.checkout-btn{
+  width:100%;background:var(--accent);color:#fff;border:none;border-radius:var(--r);
+  padding:15px;font-family:'Sarabun',sans-serif;font-size:19px;font-weight:900;
+  cursor:pointer;transition:all 0.15s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  box-shadow:0 4px 14px rgba(217,95,10,0.35);touch-action:manipulation;
+}
+.checkout-btn:hover{background:var(--accent-h)}
+.checkout-btn:active{transform:scale(0.97)}
+.checkout-btn:disabled{background:var(--border);color:var(--muted);box-shadow:none;cursor:default}
+
+/* ========== MODALS ========== */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:100;align-items:center;justify-content:center;padding:12px;backdrop-filter:blur(4px)}
+.overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:18px;width:100%;max-width:520px;max-height:92dvh;overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--sh2);animation:mIn 0.25s cubic-bezier(0.34,1.56,0.64,1)}
+.modal.wide{max-width:700px}
+@keyframes mIn{from{opacity:0;transform:scale(0.88) translateY(16px)}to{opacity:1;transform:none}}
+.mhdr{padding:16px 16px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--border);flex-shrink:0}
+.mtitle{font-size:18px;font-weight:900}
+.mclose{background:var(--surface2);border:2px solid var(--border);width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--muted);font-weight:700}
+.mclose:hover{background:var(--border);color:var(--text)}
+.mbody{padding:14px;overflow-y:auto;flex:1}
+
+/* NUMPAD */
+.ndisp{background:var(--surface2);border:2px solid var(--border);border-radius:var(--rs);padding:12px;font-size:32px;font-weight:900;text-align:right;margin-bottom:4px;font-variant-numeric:tabular-nums;min-height:58px;display:flex;align-items:center;justify-content:flex-end}
+.nlabel{font-size:11px;color:var(--muted);font-weight:700;text-align:right;margin-bottom:6px}
+.npad{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.nbtn{border:2px solid var(--border);border-radius:var(--rs);padding:16px;font-family:'Sarabun',sans-serif;font-size:20px;font-weight:800;cursor:pointer;background:var(--surface);transition:all 0.1s;color:var(--text);touch-action:manipulation}
+.nbtn:hover{background:var(--surface2);border-color:#bbb}
+.nbtn:active{transform:scale(0.91);background:var(--border)}
+.nbtn.del{background:var(--red-l);color:var(--red);border-color:var(--red-l)}
+.nbtn.ok{background:var(--green);color:#fff;border-color:var(--green);font-size:16px;grid-column:span 2}
+.nbtn.ok:hover{background:var(--green-h)}
+.nbtn.z2{grid-column:span 2}
+
+/* HISTORY */
+.htabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.htab{border:2px solid var(--border);border-radius:8px;padding:7px 14px;font-family:'Sarabun',sans-serif;font-size:14px;font-weight:800;cursor:pointer;background:var(--surface2);color:var(--muted);transition:all 0.15s;white-space:nowrap}
+.htab.active{background:var(--text);color:#fff;border-color:var(--text)}
+.hdate-input{border:2px solid var(--border);border-radius:var(--rs);padding:8px 12px;font-family:'Sarabun',sans-serif;font-size:15px;font-weight:700;color:var(--text);outline:none;background:var(--surface2)}
+.hdate-input:focus{border-color:var(--accent);background:#fff}
+.hdate-row{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.hdate-row .slabel{margin-bottom:0;white-space:nowrap}
+.scards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:12px}
+.scard{border-radius:var(--r);padding:12px;border:2px solid var(--border)}
+.scard.tot{background:var(--accent-l);border-color:var(--accent)}
+.scard.csh{background:var(--green-l);border-color:var(--green)}
+.scard.trf{background:var(--blue-l);border-color:var(--blue)}
+.scard-lbl{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:2px}
+.scard.tot .scard-lbl{color:var(--accent)}
+.scard.csh .scard-lbl{color:var(--green)}
+.scard.trf .scard-lbl{color:var(--blue)}
+.scard-amt{font-size:20px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1.1}
+.scard.tot .scard-amt{color:var(--accent)}
+.scard.csh .scard-amt{color:var(--green)}
+.scard.trf .scard-amt{color:var(--blue)}
+.scard-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.dsection{background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--r);padding:10px;margin-bottom:10px}
+.dsection-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:6px}
+.dcell{background:var(--surface);border:1.5px solid var(--border);border-radius:9px;padding:8px 6px;text-align:center}
+.dcell .dval{font-size:14px;font-weight:900}
+.dcell .dcnt{font-size:11px;color:var(--muted);font-weight:700}
+.dcell .dtot{font-size:10px;color:var(--accent);font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
+.dcell.note{border-color:var(--yellow);background:var(--yellow-l)}
+.dcell.note .dval{color:var(--yellow)}
+.dcell.coin{border-color:var(--muted)}
+.dcell.coin .dval{color:var(--muted)}
+.day-table{width:100%;border-collapse:collapse;margin-bottom:10px}
+.day-table th{text-align:left;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);padding:6px 8px;border-bottom:2px solid var(--border)}
+.day-table td{padding:9px 8px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.day-table tr:hover td{background:var(--surface2)}
+.day-table .td-date{font-weight:800;cursor:pointer;color:var(--accent);text-decoration:underline}
+.day-table .td-total{font-weight:900;font-size:14px}
+.day-table .td-cash{color:var(--green);font-weight:700}
+.day-table .td-tf{color:var(--blue);font-weight:700}
+.hitems{display:flex;flex-direction:column;gap:1px}
+.hitem{display:flex;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);gap:9px}
+.hitem-badge{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.hitem-badge.cash{background:var(--green-l)}
+.hitem-badge.transfer{background:var(--blue-l)}
+.hitem-info{flex:1;min-width:0}
+.hitem-goods{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hitem-time{font-size:11px;color:var(--muted);margin-top:1px}
+.hitem-amt{font-size:15px;font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap}
+.hempty{text-align:center;color:var(--muted);padding:32px 0;font-size:14px;font-weight:600}
+.hperiod-title{font-size:14px;font-weight:900;margin-bottom:8px;padding-bottom:7px;border-bottom:2px solid var(--border)}
+.info-box{background:var(--yellow-l);border:1.5px solid var(--yellow);border-radius:var(--r);padding:12px;margin-bottom:10px;font-size:12px;font-weight:600;color:#7A5500;line-height:1.5}
+.info-box strong{font-weight:900}
+.export-row{display:flex;gap:7px;margin-bottom:12px}
+.ebtn{flex:1;background:var(--surface2);border:2px solid var(--border);border-radius:var(--rs);padding:9px;font-family:'Sarabun',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:var(--text);transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:5px}
+.ebtn:hover{background:var(--border)}
+.ebtn.del-all{color:var(--red);border-color:var(--red-l);background:var(--red-l)}
+.ebtn.del-all:hover{background:#f5c2bb}
+.sdivider{height:1px;background:var(--border);margin:8px 0}
+
+/* ========== TOAST ========== */
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--green);color:#fff;padding:10px 22px;border-radius:50px;font-size:14px;font-weight:800;box-shadow:var(--sh2);transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1);z-index:999;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ========== SCROLLBAR ========== */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px}
+
+/* ========== RESPONSIVE ========== */
+@media(max-width:960px){
+  .main{grid-template-columns:1fr 290px}
+}
+@media(max-width:700px){
+  .main{grid-template-columns:1fr 250px}
+  .pgrid{grid-template-columns:repeat(3,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-logo">🛒 <span>POS</span> คิดเงิน</div>
+  <div class="hdr-clock" id="clock">--:--:--</div>
+  <div class="hdr-btns">
+    <span style="align-self:center;font-size:11px;color:rgba(255,255,255,0.5)" id="backupStatus" title="สถานะสำรองข้อมูล">
+      <span class="backup-dot" id="backupDot" style="background:#9A8E82"></span>
+    </span>
+    <button class="hbtn" onclick="openHistory()">📋 ประวัติ</button>
+    <button class="hbtn acc" onclick="openSummary()">📊 สรุปยอด</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- LEFT PANEL -->
+  <div class="lpanel">
+    <div class="lpanel-scroll">
+
+      <!-- QUICK PRICES -->
+      <div>
+        <div class="slabel">⚡ ราคายอดฮิต — แตะเพื่อเพิ่มในตะกร้า</div>
+        <div class="pgrid" id="priceGrid"></div>
+      </div>
+
+      <!-- PAYMENT TYPE -->
+      <div>
+        <div class="slabel">💳 วิธีชำระเงิน</div>
+        <div class="ptype">
+          <button class="ptbtn ac" id="btnCash" onclick="setPayment('cash')">💵 เงินสด</button>
+          <button class="ptbtn" id="btnTrf" onclick="setPayment('transfer')">📱 เงินโอน</button>
+        </div>
+      </div>
+
+      <!-- CASH INPUT -->
+      <div id="cashSection">
+        <div class="slabel">💰 เงินที่รับมา</div>
+        <div class="denom-wrap">
+          <!-- scrollable middle: denoms + breakdown -->
+          <div class="denom-scroll-area">
+            <div>
+              <div class="denom-sub-label">💵 ธนบัตร</div>
+              <div class="denom-grid" id="bankGrid"></div>
+            </div>
+            <div>
+              <div class="denom-sub-label" style="margin-top:4px">🪙 เหรียญ</div>
+              <div class="denom-grid coins" id="coinGrid"></div>
+            </div>
+            <button class="denom-manual-toggle" id="manualToggle" onclick="toggleManual()">✏️ หรือพิมพ์จำนวนเงินเองด้วยตัวเลข</button>
+            <input class="manual-input" id="manualInput" type="number" min="0" placeholder="0" inputmode="numeric" style="display:none" oninput="calcChange()">
+            <!-- breakdown -->
+            <div class="denom-breakdown-wrap">
+              <div class="denom-breakdown" id="denomBreakdown"></div>
+            </div>
+            <!-- total received -->
+            <div class="denom-total-row" id="receivedRow" style="display:none">
+              <span class="denom-total-label">รวมเงินที่รับมา</span>
+              <span class="denom-total-val" id="receivedTotal">฿0</span>
+            </div>
+          </div>
+          <!-- CHANGE — pinned to bottom, never pushed off -->
+          <div style="padding-top:8px">
+            <div class="change-box zero" id="changeBox">
+              <span class="change-lbl">เงินทอน</span>
+              <span class="change-val" id="changeVal">฿0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TRANSFER SECTION -->
+      <div id="transferSection" style="display:none">
+        <div class="slabel">📱 การโอนเงิน</div>
+        <div class="transfer-box">
+          <div class="ti">📱✅</div>
+          <div class="tl">ชำระด้วยเงินโอน</div>
+          <div class="ts">ไม่ต้องคิดเงินทอน · กด "จบการขาย" ได้เลย</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL (CART) -->
+  <div class="rpanel">
+    <div class="cart-hdr">
+      <div class="cart-title">🧾 รายการ (<span id="cartCount">0</span> รายการ)</div>
+      <button class="btn-clr" onclick="clearCart()">ล้างทั้งหมด ✕</button>
+    </div>
+    <div class="cart-list" id="cartList">
+      <div class="cart-empty">
+        <div class="ei">🛒</div>
+        <p>ยังไม่มีสินค้า</p>
+        <p class="es">กดปุ่มราคาด้านซ้ายเพื่อเพิ่ม</p>
+      </div>
+    </div>
+    <div class="cart-foot">
+      <div class="tot-row">
+        <span class="tot-lbl">ยอดรวม</span>
+        <div>
+          <span class="tot-amt" id="totalAmt">0</span>
+          <span class="tot-cur">฿</span>
+        </div>
+      </div>
+      <button class="checkout-btn" id="checkoutBtn" onclick="checkout()" disabled>✅ จบการขาย</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======= MODAL: CUSTOM AMOUNT ======= -->
+<div class="overlay" id="mCustom">
+  <div class="modal" style="max-width:340px">
+    <div class="mhdr">
+      <div class="mtitle">✏️ ระบุราคาเอง</div>
+      <button class="mclose" onclick="closeMod('mCustom')">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="nlabel">จำนวนเงิน (บาท)</div>
+      <div class="ndisp" id="ndisp">0</div>
+      <div class="npad">
+        <button class="nbtn" onclick="np('1')">1</button>
+        <button class="nbtn" onclick="np('2')">2</button>
+        <button class="nbtn" onclick="np('3')">3</button>
+        <button class="nbtn" onclick="np('4')">4</button>
+        <button class="nbtn" onclick="np('5')">5</button>
+        <button class="nbtn" onclick="np('6')">6</button>
+        <button class="nbtn" onclick="np('7')">7</button>
+        <button class="nbtn" onclick="np('8')">8</button>
+        <button class="nbtn" onclick="np('9')">9</button>
+        <button class="nbtn del" onclick="np('d')">⌫</button>
+        <button class="nbtn z2" onclick="np('0')">0</button>
+        <button class="nbtn ok" onclick="npConfirm()">✓ เพิ่มในตะกร้า</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======= MODAL: HISTORY ======= -->
+<div class="overlay" id="mHistory">
+  <div class="modal wide">
+    <div class="mhdr">
+      <div class="mtitle" id="historyTitle">📋 ประวัติและสรุปยอด</div>
+      <button class="mclose" onclick="closeMod('mHistory')">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="info-box">
+        📌 <strong>ข้อมูลเก็บใน Browser (localStorage) + สำรองใน IndexedDB</strong><br>
+        🔋 <strong>ไฟดับ / Refresh / ปิดหน้าต่าง</strong> → ข้อมูลปลอดภัย ระบบ auto-save ทุก 5 วินาที<br>
+        ⚠️ ห้ามกด "ล้างข้อมูลเว็บไซต์ / Clear Site Data" ใน Settings ของบราวเซอร์<br>
+        💾 แนะนำ Export CSV ไว้ใน Excel เป็นประจำเพื่อความมั่นใจสูงสุด
+      </div>
+      <div class="htabs">
+        <button class="htab active" id="tab_today" onclick="switchTab('today')">📅 วันนี้</button>
+        <button class="htab" id="tab_day" onclick="switchTab('day')">🗓 เลือกวัน</button>
+        <button class="htab" id="tab_month" onclick="switchTab('month')">📆 เลือกเดือน</button>
+        <button class="htab" id="tab_all" onclick="switchTab('all')">📂 ทั้งหมด</button>
+      </div>
+      <div class="hdate-row" id="datePickerRow" style="display:none">
+        <span class="slabel">เลือกวัน:</span>
+        <input class="hdate-input" type="date" id="dayPicker" onchange="renderHistory()">
+      </div>
+      <div class="hdate-row" id="monthPickerRow" style="display:none">
+        <span class="slabel">เลือกเดือน:</span>
+        <input class="hdate-input" type="month" id="monthPicker" onchange="renderHistory()">
+      </div>
+      <div class="export-row">
+        <button class="ebtn" onclick="exportCSV()">📥 Export CSV (Excel)</button>
+        <button class="ebtn del-all" onclick="deleteCurrentPeriod()">🗑 ลบข้อมูลช่วงนี้</button>
+      </div>
+      <div id="historyContent"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">✅ บันทึกแล้ว</div>
+
+<script>
+// ==================== CONSTANTS ====================
+const BANKNOTES = [1000, 500, 100, 50, 20];
+const COINS     = [10, 5, 2, 1];
+const ALL_D     = [...BANKNOTES, ...COINS];
+// เพิ่ม 1 และ 2 บาทเข้าในราคายอดฮิตด้วย
+const PRICES    = [1,2,5,10,15,20,25,30,40,50,60,80,100,150,200,300,500,1000];
+
+// ==================== STATE ====================
+let cart = [];
+let paymentType = 'cash';
+let cashD = {};
+let useManual = false;
+let npVal = '0';
+let currentTab = 'today';
+let dbReady = false;
+let idbDB = null;
+
+ALL_D.forEach(d => cashD[d] = 0);
+
+// ==================== INDEXEDDB SETUP ====================
+// IDB = second layer of protection beyond localStorage
+// Stores both transaction records AND the current cart state
+
+const IDB_NAME = 'pos_idb';
+const IDB_VER  = 1;
+const STORE_RECORDS = 'records';
+const STORE_CART    = 'cart_state';
+
+function openIDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, IDB_VER);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_RECORDS)) {
+        const s = db.createObjectStore(STORE_RECORDS, {keyPath:'id'});
+        s.createIndex('time','time',{unique:false});
+      }
+      if (!db.objectStoreNames.contains(STORE_CART)) {
+        db.createObjectStore(STORE_CART, {keyPath:'key'});
+      }
+    };
+    req.onsuccess = e => { idbDB = e.target.result; dbReady = true; updateBackupDot(true); resolve(idbDB); };
+    req.onerror   = e => { console.warn('IDB failed:', e); updateBackupDot(false); resolve(null); };
+  });
+}
+
+function updateBackupDot(ok) {
+  const dot = document.getElementById('backupDot');
+  if (dot) dot.style.background = ok ? '#4ade80' : '#f87171';
+}
+
+function idbSaveRecord(rec) {
+  if (!idbDB) return;
+  try {
+    const tx = idbDB.transaction(STORE_RECORDS, 'readwrite');
+    tx.objectStore(STORE_RECORDS).put(rec);
+  } catch(e) { console.warn('IDB save record fail:', e); }
+}
+
+function idbSaveCart() {
+  if (!idbDB) return;
+  try {
+    const state = {
+      key: 'current',
+      cart: JSON.parse(JSON.stringify(cart)),
+      paymentType,
+      cashD: {...cashD},
+      useManual,
+      savedAt: new Date().toISOString()
+    };
+    const tx = idbDB.transaction(STORE_CART, 'readwrite');
+    tx.objectStore(STORE_CART).put(state);
+  } catch(e) { console.warn('IDB save cart fail:', e); }
+}
+
+function idbRestoreCart() {
+  if (!idbDB) return;
+  try {
+    const tx = idbDB.transaction(STORE_CART, 'readonly');
+    const req = tx.objectStore(STORE_CART).get('current');
+    req.onsuccess = e => {
+      const s = e.target.result;
+      if (!s || !s.cart || !s.cart.length) return;
+      // Only restore if cart is currently empty (fresh page load)
+      if (cart.length > 0) return;
+      cart = s.cart;
+      paymentType = s.paymentType || 'cash';
+      cashD = s.cashD || {};
+      ALL_D.forEach(d => { if (cashD[d] === undefined) cashD[d] = 0; });
+      useManual = s.useManual || false;
+      renderCart();
+      setPayment(paymentType);
+      renderDenoms();
+      calcChange();
+      if (cart.length > 0) {
+        showToast(`🔄 กู้คืนตะกร้า ${cart.length} รายการจากการบันทึกอัตโนมัติ`);
+      }
+    };
+  } catch(e) { console.warn('IDB restore fail:', e); }
+}
+
+// Also migrate any IDB records to localStorage on load
+function idbSyncToLocalStorage() {
+  if (!idbDB) return;
+  try {
+    const tx = idbDB.transaction(STORE_RECORDS, 'readonly');
+    const req = tx.objectStore(STORE_RECORDS).getAll();
+    req.onsuccess = e => {
+      const recs = e.target.result || [];
+      // Group by day and merge into localStorage
+      const byDay = {};
+      recs.forEach(r => {
+        const dk = 'pos_' + r.time.slice(0,10);
+        if (!byDay[dk]) byDay[dk] = [];
+        byDay[dk].push(r);
+      });
+      Object.entries(byDay).forEach(([k, arr]) => {
+        const existing = JSON.parse(localStorage.getItem(k)||'[]');
+        const existingIds = new Set(existing.map(r => r.id));
+        const newOnes = arr.filter(r => !existingIds.has(r.id));
+        if (newOnes.length) {
+          const merged = [...existing, ...newOnes];
+          localStorage.setItem(k, JSON.stringify(merged));
+        }
+      });
+    };
+  } catch(e) { console.warn('IDB sync fail:', e); }
+}
+
+// ==================== AUTO-SAVE CART ====================
+// Saves cart state every 5 seconds to both localStorage and IDB
+function autoSaveCart() {
+  try {
+    const state = {
+      cart: JSON.parse(JSON.stringify(cart)),
+      paymentType,
+      cashD: {...cashD},
+      useManual,
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem('pos_cart_autosave', JSON.stringify(state));
+    idbSaveCart();
+  } catch(e) { console.warn('autosave fail:', e); }
+}
+
+function restoreCartFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem('pos_cart_autosave');
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    if (!s.cart || !s.cart.length) return false;
+    cart = s.cart;
+    paymentType = s.paymentType || 'cash';
+    cashD = s.cashD || {};
+    ALL_D.forEach(d => { if (cashD[d] === undefined) cashD[d] = 0; });
+    useManual = s.useManual || false;
+    return true;
+  } catch(e) { return false; }
+}
+
+// ==================== INIT ====================
+async function init() {
+  buildPriceGrid();
+  buildDenomGrids();
+
+  // Open IDB first
+  await openIDB();
+
+  // Restore cart from localStorage first (faster)
+  const restored = restoreCartFromLocalStorage();
+  if (restored && cart.length > 0) {
+    renderCart();
+    setPayment(paymentType);
+    renderDenoms();
+    calcChange();
+    showToast(`🔄 กู้คืนตะกร้า ${cart.length} รายการ`);
+  } else {
+    renderCart();
+    setPayment('cash');
+  }
+
+  // Then try IDB (may have more recent data if localStorage was cleared)
+  if (!restored) setTimeout(() => idbRestoreCart(), 500);
+
+  // Sync IDB → localStorage in background
+  setTimeout(() => idbSyncToLocalStorage(), 1000);
+
+  // Auto-save every 5 seconds
+  setInterval(autoSaveCart, 5000);
+
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  const today = new Date().toISOString().slice(0,10);
+  const month = today.slice(0,7);
+  document.getElementById('dayPicker').value = today;
+  document.getElementById('monthPicker').value = month;
+}
+
+function updateClock() {
+  const n = new Date();
+  document.getElementById('clock').textContent =
+    n.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+}
+
+// ==================== PRICE GRID ====================
+function buildPriceGrid() {
+  const g = document.getElementById('priceGrid');
+  g.innerHTML = '';
+  PRICES.forEach(p => {
+    const b = document.createElement('button');
+    b.className = 'pbtn' + (p >= 500 ? ' hi' : '');
+    b.innerHTML = `<span>${fmt(p)}</span><span class="sub">บาท</span>`;
+    b.onclick = () => addToCart(p);
+    g.appendChild(b);
+  });
+  const c = document.createElement('button');
+  c.className = 'pcustom';
+  c.innerHTML = `✏️ ระบุราคาเอง`;
+  c.onclick = openCustom;
+  g.appendChild(c);
+}
+
+// ==================== CART ====================
+function addToCart(price, label) {
+  const name = label || `สินค้า ฿${fmt(price)}`;
+  const ex = cart.find(i => i.name === name && i.price === price);
+  if (ex) { ex.qty++; }
+  else { cart.push({id: Date.now()+Math.random(), name, price, qty:1}); }
+  renderCart();
+  autoSaveCart();
+}
+
+function changeQty(id, d) {
+  const it = cart.find(i => i.id === id);
+  if (!it) return;
+  it.qty += d;
+  if (it.qty <= 0) cart = cart.filter(i => i.id !== id);
+  renderCart();
+  autoSaveCart();
+}
+
+function removeItem(id) {
+  cart = cart.filter(i => i.id !== id);
+  renderCart();
+  autoSaveCart();
+}
+
+function clearCart() {
+  if (!cart.length) return;
+  cart = [];
+  resetCash();
+  renderCart();
+  calcChange();
+  // Clear saved cart
+  try { localStorage.removeItem('pos_cart_autosave'); } catch(e){}
+  if (idbDB) {
+    try {
+      const tx = idbDB.transaction(STORE_CART, 'readwrite');
+      tx.objectStore(STORE_CART).delete('current');
+    } catch(e){}
+  }
+}
+
+function getTotal() {
+  return cart.reduce((s,i) => s + i.price * i.qty, 0);
+}
+
+function renderCart() {
+  const list = document.getElementById('cartList');
+  const total = getTotal();
+  const count = cart.reduce((s,i) => s + i.qty, 0);
+  document.getElementById('totalAmt').textContent = fmt(total);
+  document.getElementById('cartCount').textContent = count;
+  document.getElementById('checkoutBtn').disabled = !cart.length;
+  calcChange();
+  if (!cart.length) {
+    list.innerHTML = `<div class="cart-empty"><div class="ei">🛒</div><p>ยังไม่มีสินค้า</p><p class="es">กดปุ่มราคาด้านซ้ายเพื่อเพิ่ม</p></div>`;
+    return;
+  }
+  list.innerHTML = cart.map(it => `
+    <div class="citem">
+      <div class="citem-info">
+        <div class="citem-name">${esc(it.name)}</div>
+        <div class="citem-price">฿${fmt(it.price)} × ${it.qty} = ฿${fmt(it.price*it.qty)}</div>
+      </div>
+      <div class="cqty">
+        <button class="qbtn" onclick="changeQty(${it.id},-1)">−</button>
+        <span class="qnum">${it.qty}</span>
+        <button class="qbtn" onclick="changeQty(${it.id},1)">+</button>
+      </div>
+      <div class="citem-tot">฿${fmt(it.price*it.qty)}</div>
+      <button class="rmbtn" onclick="removeItem(${it.id})">✕</button>
+    </div>
+  `).join('');
+}
+
+// ==================== PAYMENT ====================
+function setPayment(type) {
+  paymentType = type;
+  document.getElementById('btnCash').className = 'ptbtn' + (type==='cash' ? ' ac' : '');
+  document.getElementById('btnTrf').className  = 'ptbtn' + (type==='transfer' ? ' at' : '');
+  document.getElementById('cashSection').style.display    = type==='cash' ? '' : 'none';
+  document.getElementById('transferSection').style.display= type==='transfer' ? '' : 'none';
+  calcChange();
+}
+
+// ==================== DENOMINATION ====================
+function buildDenomGrids() {
+  const bg = document.getElementById('bankGrid');
+  const cg = document.getElementById('coinGrid');
+  BANKNOTES.forEach(d => bg.appendChild(makeDBtn(d,'💵','ใบ')));
+  COINS.forEach(d => cg.appendChild(makeDBtn(d,'🪙','เหรียญ')));
+}
+
+function makeDBtn(val, icon, type) {
+  const b = document.createElement('div');
+  b.className = 'dbtn';
+  b.innerHTML = `
+    <div class="dv">${val >= 1000 ? '1K' : fmt(val)}</div>
+    <div class="dt">${type}</div>
+    <div class="dbadge" id="badge_${val}">0</div>
+  `;
+  b.onclick = () => addDenom(val);
+  return b;
+}
+
+function addDenom(val) { cashD[val]++; renderDenoms(); calcChange(); }
+function subDenom(val) { if (cashD[val]>0){cashD[val]--;renderDenoms();calcChange();} }
+function resetCash() {
+  ALL_D.forEach(d => cashD[d]=0);
+  document.getElementById('manualInput').value='';
+  useManual=false;
+  const inp=document.getElementById('manualInput');
+  inp.style.display='none';
+  document.getElementById('manualToggle').textContent='✏️ หรือพิมพ์จำนวนเงินเองด้วยตัวเลข';
+  document.getElementById('bankGrid').style.opacity='';
+  document.getElementById('bankGrid').style.pointerEvents='';
+  document.getElementById('coinGrid').style.opacity='';
+  document.getElementById('coinGrid').style.pointerEvents='';
+  renderDenoms();
+}
+
+function getTotalReceived() {
+  if (useManual) return parseFloat(document.getElementById('manualInput').value)||0;
+  return ALL_D.reduce((s,d)=>s+d*cashD[d],0);
+}
+
+function renderDenoms() {
+  ALL_D.forEach(d => {
+    const b = document.getElementById('badge_'+d);
+    if (!b) return;
+    const cnt = cashD[d];
+    b.textContent = cnt;
+    b.className = 'dbadge'+(cnt>0?' show':'');
+  });
+  const bk = document.getElementById('denomBreakdown');
+  const rr = document.getElementById('receivedRow');
+  const active = ALL_D.filter(d=>cashD[d]>0);
+  if (!active.length || useManual) {
+    bk.innerHTML = useManual?'':'<div class="denom-empty">กดแบงค์/เหรียญด้านบนเพื่อเพิ่ม</div>';
+    rr.style.display='none';
+    return;
+  }
+  const total = getTotalReceived();
+  rr.style.display='flex';
+  document.getElementById('receivedTotal').textContent='฿'+fmt(total);
+  bk.innerHTML='<div class="sdivider"></div>'+active.map(d=>{
+    const cnt=cashD[d];
+    const type=BANKNOTES.includes(d)?'ใบ':'เหรียญ';
+    const icon=BANKNOTES.includes(d)?'💵':'🪙';
+    return `
+      <div class="denom-row">
+        <div class="denom-row-left">
+          <span>${icon}</span>
+          <div class="denom-row-info">฿${fmt(d)} × ${cnt} ${type}</div>
+        </div>
+        <span class="denom-row-total">= ฿${fmt(d*cnt)}</span>
+        <button class="denom-row-minus" onclick="subDenom(${d})">−</button>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleManual() {
+  useManual=!useManual;
+  const inp=document.getElementById('manualInput');
+  const tog=document.getElementById('manualToggle');
+  inp.style.display=useManual?'block':'none';
+  tog.textContent=useManual?'🔢 กลับไปใช้ปุ่มแบงค์/เหรียญ':'✏️ หรือพิมพ์จำนวนเงินเองด้วยตัวเลข';
+  document.getElementById('bankGrid').style.opacity=useManual?'0.3':'';
+  document.getElementById('bankGrid').style.pointerEvents=useManual?'none':'';
+  document.getElementById('coinGrid').style.opacity=useManual?'0.3':'';
+  document.getElementById('coinGrid').style.pointerEvents=useManual?'none':'';
+  renderDenoms();
+  calcChange();
+}
+
+function calcChange() {
+  if (paymentType==='transfer') return;
+  const received=getTotalReceived();
+  const total=getTotal();
+  const change=received-total;
+  const box=document.getElementById('changeBox');
+  const val=document.getElementById('changeVal');
+  if (received===0){
+    box.className='change-box zero';val.textContent='฿0';
+  } else if (change<0){
+    box.className='change-box ins';val.textContent=`ขาด ฿${fmt(Math.abs(change))}`;
+  } else {
+    box.className='change-box';val.textContent=`฿${fmt(change)}`;
+  }
+}
+
+// ==================== CHECKOUT ====================
+function checkout() {
+  if (!cart.length) return;
+  const total=getTotal();
+  const received=paymentType==='cash'?getTotalReceived():total;
+  if (paymentType==='cash'&&received<total){
+    alert('⚠️ เงินที่รับมายังไม่พอ กรุณาเพิ่มแบงค์/เหรียญหรือกรอกเงินให้ครบ');
+    return;
+  }
+  const denomSnap={};
+  ALL_D.forEach(d=>denomSnap[d]=cashD[d]);
+  const rec={
+    id: Date.now(),
+    time: new Date().toISOString(),
+    items: cart.map(i=>({...i})),
+    total, paymentType, received,
+    change: paymentType==='cash'?received-total:0,
+    cashDenominations: paymentType==='cash'?denomSnap:null,
+    useManual,
+  };
+  saveRecord(rec);
+  idbSaveRecord(rec); // dual save to IDB
+  cart=[];
+  resetCash();
+  renderCart();
+  calcChange();
+  // Clear autosave
+  try{ localStorage.removeItem('pos_cart_autosave'); }catch(e){}
+  if (idbDB) {
+    try{
+      const tx=idbDB.transaction(STORE_CART,'readwrite');
+      tx.objectStore(STORE_CART).delete('current');
+    }catch(e){}
+  }
+  showToast(`✅ บันทึกแล้ว ฿${fmt(total)} (${paymentType==='cash'?'เงินสด':'เงินโอน'})`);
+}
+
+// ==================== STORAGE (localStorage) ====================
+function dayKey(d){ return 'pos_'+(d||new Date().toISOString().slice(0,10)); }
+
+function saveRecord(rec){
+  const k=dayKey(rec.time.slice(0,10));
+  const arr=JSON.parse(localStorage.getItem(k)||'[]');
+  arr.push(rec);
+  localStorage.setItem(k,JSON.stringify(arr));
+}
+
+function getAllPOSKeys(){
+  return Object.keys(localStorage)
+    .filter(k=>/^pos_\d{4}-\d{2}-\d{2}$/.test(k))
+    .sort().reverse();
+}
+
+function getRecords(prefix){
+  const keys=getAllPOSKeys().filter(k=>{
+    const d=k.slice(4);
+    return !prefix||d.startsWith(prefix);
+  });
+  const recs=[];
+  keys.forEach(k=>{
+    const arr=JSON.parse(localStorage.getItem(k)||'[]');
+    arr.forEach(r=>recs.push({...r,_dateKey:k.slice(4)}));
+  });
+  return recs.sort((a,b)=>new Date(b.time)-new Date(a.time));
+}
+
+// ==================== HISTORY MODAL ====================
+function openHistory(){ openSummary(); }
+
+function openSummary(){
+  currentTab='today';
+  document.querySelectorAll('.htab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab_today').classList.add('active');
+  document.getElementById('datePickerRow').style.display='none';
+  document.getElementById('monthPickerRow').style.display='none';
+  renderHistory();
+  openMod('mHistory');
+}
+
+function switchTab(tab){
+  currentTab=tab;
+  document.querySelectorAll('.htab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab_'+tab).classList.add('active');
+  document.getElementById('datePickerRow').style.display=tab==='day'?'flex':'none';
+  document.getElementById('monthPickerRow').style.display=tab==='month'?'flex':'none';
+  renderHistory();
+}
+
+function renderHistory(){
+  const tab=currentTab;
+  const today=new Date().toISOString().slice(0,10);
+  let prefix='';
+  if (tab==='today') prefix=today;
+  else if (tab==='day') prefix=document.getElementById('dayPicker').value;
+  else if (tab==='month') prefix=document.getElementById('monthPicker').value;
+
+  const recs=getRecords(prefix);
+  const content=document.getElementById('historyContent');
+  if (!recs.length){
+    content.innerHTML=`<div class="hempty">📭 ไม่มีข้อมูลในช่วงเวลานี้</div>`;
+    return;
+  }
+
+  const totalAll=recs.reduce((s,r)=>s+r.total,0);
+  const totalCash=recs.filter(r=>r.paymentType==='cash').reduce((s,r)=>s+r.total,0);
+  const totalTrf=recs.filter(r=>r.paymentType==='transfer').reduce((s,r)=>s+r.total,0);
+  const cntCash=recs.filter(r=>r.paymentType==='cash').length;
+  const cntTrf=recs.filter(r=>r.paymentType==='transfer').length;
+
+  let html=`
+    <div class="scards">
+      <div class="scard tot"><div class="scard-lbl">ยอดรวมทั้งหมด</div><div class="scard-amt">฿${fmt(totalAll)}</div><div class="scard-sub">${recs.length} รายการ</div></div>
+      <div class="scard csh"><div class="scard-lbl">เงินสด</div><div class="scard-amt">฿${fmt(totalCash)}</div><div class="scard-sub">${cntCash} รายการ</div></div>
+      <div class="scard trf"><div class="scard-lbl">เงินโอน</div><div class="scard-amt">฿${fmt(totalTrf)}</div><div class="scard-sub">${cntTrf} รายการ</div></div>
+    </div>
+  `;
+
+  // Denom summary for cash records
+  const cashRecs=recs.filter(r=>r.paymentType==='cash'&&r.cashDenominations&&!r.useManual);
+  if (cashRecs.length){
+    const totD={};
+    ALL_D.forEach(d=>totD[d]=0);
+    cashRecs.forEach(r=>{
+      ALL_D.forEach(d=>{ totD[d]+=(r.cashDenominations[d]||0); });
+    });
+    const anyD=ALL_D.some(d=>totD[d]>0);
+    if (anyD){
+      html+=`
+        <div class="dsection">
+          <div class="dsection-title">💵 สรุปธนบัตร/เหรียญที่รับมา</div>
+          <div class="dgrid">
+            ${BANKNOTES.map(d=>totD[d]>0?`
+              <div class="dcell note">
+                <div class="dval">฿${fmt(d)}</div>
+                <div class="dcnt">${totD[d]} ใบ</div>
+                <div class="dtot">= ฿${fmt(d*totD[d])}</div>
+              </div>`:``).join('')}
+            ${COINS.map(d=>totD[d]>0?`
+              <div class="dcell coin">
+                <div class="dval">฿${fmt(d)}</div>
+                <div class="dcnt">${totD[d]} เหรียญ</div>
+                <div class="dtot">= ฿${fmt(d*totD[d])}</div>
+              </div>`:``).join('')}
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  // Monthly breakdown
+  if (tab==='all'||tab==='month'){
+    const byMonth={};
+    recs.forEach(r=>{
+      const m=r.time.slice(0,7);
+      if(!byMonth[m]) byMonth[m]={total:0,cash:0,transfer:0,cnt:0};
+      byMonth[m].total+=r.total; byMonth[m].cnt++;
+      if(r.paymentType==='cash') byMonth[m].cash+=r.total;
+      else byMonth[m].transfer+=r.total;
+    });
+    const months=Object.keys(byMonth).sort().reverse();
+    html+=`
+      <table class="day-table">
+        <thead><tr><th>เดือน</th><th>ยอดรวม</th><th>เงินสด</th><th>เงินโอน</th><th>จำนวน</th></tr></thead>
+        <tbody>
+          ${months.map(m=>`
+            <tr>
+              <td class="td-date" onclick="jumpToMonth('${m}')">${m}</td>
+              <td class="td-total">฿${fmt(byMonth[m].total)}</td>
+              <td class="td-cash">฿${fmt(byMonth[m].cash)}</td>
+              <td class="td-tf">฿${fmt(byMonth[m].transfer)}</td>
+              <td>${byMonth[m].cnt}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    if (tab==='all') { content.innerHTML=html; return; }
+  }
+
+  // Daily breakdown
+  if (tab==='month'){
+    const byDay={};
+    recs.forEach(r=>{
+      const d=r.time.slice(0,10);
+      if(!byDay[d]) byDay[d]={total:0,cash:0,transfer:0,cnt:0};
+      byDay[d].total+=r.total; byDay[d].cnt++;
+      if(r.paymentType==='cash') byDay[d].cash+=r.total;
+      else byDay[d].transfer+=r.total;
+    });
+    const days=Object.keys(byDay).sort().reverse();
+    html+=`
+      <table class="day-table">
+        <thead><tr><th>วัน</th><th>ยอดรวม</th><th>เงินสด</th><th>เงินโอน</th><th>จำนวน</th></tr></thead>
+        <tbody>
+          ${days.map(d=>`
+            <tr>
+              <td class="td-date" onclick="jumpToDay('${d}')">${d}</td>
+              <td class="td-total">฿${fmt(byDay[d].total)}</td>
+              <td class="td-cash">฿${fmt(byDay[d].cash)}</td>
+              <td class="td-tf">฿${fmt(byDay[d].transfer)}</td>
+              <td>${byDay[d].cnt}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  // Individual records
+  html+=`
+    <div>
+      <div class="slabel" style="margin-bottom:8px">🧾 รายการทั้งหมด (${recs.length} รายการ)</div>
+      <div class="hitems">
+        ${recs.map(r=>{
+          const t=new Date(r.time);
+          const timeStr=t.toLocaleDateString('th-TH',{day:'numeric',month:'short'})+' · '+
+            t.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',hour12:false});
+          const icon=r.paymentType==='cash'?'💵':'📱';
+          const cls=r.paymentType==='cash'?'cash':'transfer';
+          const goods=r.items.map(i=>`${i.name}×${i.qty}`).join(', ');
+          return `
+            <div class="hitem">
+              <div class="hitem-badge ${cls}">${icon}</div>
+              <div class="hitem-info">
+                <div class="hitem-goods">${esc(goods)}</div>
+                <div class="hitem-time">${timeStr} · ${r.paymentType==='cash'?'เงินสด':'เงินโอน'}</div>
+              </div>
+              <div class="hitem-amt">฿${fmt(r.total)}</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+
+  content.innerHTML=html;
+}
+
+function jumpToDay(dateStr){
+  document.getElementById('dayPicker').value=dateStr;
+  switchTab('day');
+}
+function jumpToMonth(m){
+  document.getElementById('monthPicker').value=m;
+  switchTab('month');
+}
+
+// ==================== EXPORT CSV ====================
+function exportCSV(){
+  const tab=currentTab;
+  let prefix='';
+  if(tab==='today') prefix=new Date().toISOString().slice(0,10);
+  else if(tab==='day') prefix=document.getElementById('dayPicker').value;
+  else if(tab==='month') prefix=document.getElementById('monthPicker').value;
+  const recs=getRecords(prefix);
+  if(!recs.length){alert('ไม่มีข้อมูลในช่วงเวลานี้');return;}
+  const rows=[
+    ['วันที่','เวลา','สินค้า','ยอดรวม','วิธีชำระ','เงินที่รับมา','เงินทอน',
+     '฿1000','฿500','฿100','฿50','฿20','฿10','฿5','฿2','฿1']
+  ];
+  recs.forEach(r=>{
+    const t=new Date(r.time);
+    const dateStr=t.toLocaleDateString('th-TH',{day:'2-digit',month:'2-digit',year:'numeric'});
+    const timeStr=t.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',hour12:false});
+    const goods=r.items.map(i=>`${i.name}×${i.qty}`).join('; ');
+    const d=r.cashDenominations||{};
+    rows.push([
+      dateStr,timeStr,goods,r.total,
+      r.paymentType==='cash'?'เงินสด':'เงินโอน',
+      r.received,r.change,
+      d[1000]||0,d[500]||0,d[100]||0,d[50]||0,d[20]||0,
+      d[10]||0,d[5]||0,d[2]||0,d[1]||0
+    ]);
+  });
+  const csv='\uFEFF'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`pos_export_${prefix||'all'}_${Date.now()}.csv`;
+  a.click();URL.revokeObjectURL(url);
+  showToast('📥 Export สำเร็จแล้ว!');
+}
+
+// ==================== DELETE ====================
+function deleteCurrentPeriod(){
+  const tab=currentTab;
+  let prefix='',label='ทั้งหมด';
+  if(tab==='today'){prefix=new Date().toISOString().slice(0,10);label='วันนี้';}
+  else if(tab==='day'){prefix=document.getElementById('dayPicker').value;label='วันที่เลือก';}
+  else if(tab==='month'){prefix=document.getElementById('monthPicker').value;label='เดือนที่เลือก';}
+  if(!confirm(`ลบข้อมูล${label}ทั้งหมด? ไม่สามารถกู้คืนได้`)) return;
+  const keys=getAllPOSKeys().filter(k=>!prefix||k.slice(4).startsWith(prefix));
+  keys.forEach(k=>localStorage.removeItem(k));
+  renderHistory();
+  showToast('🗑 ลบข้อมูลแล้ว');
+}
+
+// ==================== CUSTOM AMOUNT ====================
+function openCustom(){npVal='0';updateNP();openMod('mCustom');}
+function np(k){
+  if(k==='d'){npVal=npVal.slice(0,-1)||'0';}
+  else if(npVal==='0'){if(k!=='0')npVal=k;}
+  else{if(npVal.length<7)npVal+=k;}
+  updateNP();
+}
+function updateNP(){document.getElementById('ndisp').textContent=fmt(parseInt(npVal)||0);}
+function npConfirm(){
+  const p=parseInt(npVal)||0;
+  if(!p){alert('กรุณากรอกราคาที่มากกว่า 0');return;}
+  addToCart(p,`สินค้า ฿${fmt(p)}`);
+  closeMod('mCustom');
+}
+
+// ==================== MODAL HELPERS ====================
+function openMod(id){document.getElementById(id).classList.add('open');}
+function closeMod(id){document.getElementById(id).classList.remove('open');}
+
+document.querySelectorAll('.overlay').forEach(o=>{
+  o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');});
+});
+
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT') return;
+  if(e.key==='Escape') document.querySelectorAll('.overlay.open').forEach(m=>m.classList.remove('open'));
+  if(e.key==='Enter') checkout();
+});
+
+// ==================== TOAST ====================
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ==================== UTILS ====================
+function fmt(n){return Number(n).toLocaleString('th-TH');}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+// ==================== START ====================
+init();
+</script>
+</body>
+</html>
